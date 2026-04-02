@@ -474,11 +474,18 @@ class AgentResearchApp(App[None]):
             elif mode == "recall":
                 message_type = "recall_message"
             else:
-                message_type = (
-                    "first_message"
-                    if (not thread.started or thread.started_research_id != thread.research.research_id)
-                    else "user_reply"
-                )
+                is_empty_chat = len(thread.messages) == 0
+                if is_empty_chat:
+                    message_type = "first_message"
+                    self._log_operation(
+                        "Send pressed in an empty chat: switching to first_message"
+                    )
+                else:
+                    message_type = (
+                        "first_message"
+                        if (not thread.started or thread.started_research_id != thread.research.research_id)
+                        else "user_reply"
+                    )
             requires_user_text = message_type == "user_reply"
             if requires_user_text and not text:
                 self.notify("Message is empty", severity="warning")
