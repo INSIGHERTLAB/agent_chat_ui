@@ -56,15 +56,22 @@ class LocalStore:
             thread_id=thread_id,
             research=ResearchInfo(
                 research_id=research_id,
+                profile_version_id="00000000-0000-0000-0000-000000000000",
                 version=1,
                 title=f"New research {research_id[-8:]}",
+                description="Interview script for early discovery calls",
                 goal="Collect discovery insights for this interview",
+                hypothesis="Users waste time on manual repetitive workflow",
                 product_name="Unknown product",
+                company_name="Unknown company",
+                company_context="B2B SaaS, early stage",
                 segment="Unknown segment",
+                problem_context="Manual process is slow and error-prone",
                 fit_criteria=[
                     "Has clear pain point",
                     "Uses alternative solution now",
                 ],
+                contact_origin="inbound_demo",
                 questions=[
                     ResearchQuestionDTO(
                         position=1,
@@ -93,10 +100,22 @@ class LocalStore:
             thread.research.title = f"New research {thread.research.research_id[-8:]}"
         if not thread.research.goal:
             thread.research.goal = "Collect discovery insights for this interview"
+        if not thread.research.description:
+            thread.research.description = "Interview script for early discovery calls"
+        if not thread.research.hypothesis:
+            thread.research.hypothesis = "Users waste time on manual repetitive workflow"
         if not thread.research.product_name:
             thread.research.product_name = "Unknown product"
+        if not thread.research.company_name:
+            thread.research.company_name = "Unknown company"
+        if not thread.research.company_context:
+            thread.research.company_context = "B2B SaaS, early stage"
         if not thread.research.segment:
             thread.research.segment = "Unknown segment"
+        if not thread.research.problem_context:
+            thread.research.problem_context = "Manual process is slow and error-prone"
+        if not thread.research.contact_origin:
+            thread.research.contact_origin = "inbound_demo"
         if not thread.research.questions:
             thread.research.questions = [
                 ResearchQuestionDTO(

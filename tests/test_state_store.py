@@ -20,6 +20,9 @@ class LocalStoreTests(unittest.TestCase):
             self.assertEqual(thread.research.version, 1)
             self.assertTrue(thread.research.questions)
             self.assertTrue(thread.research.fit_criteria)
+            self.assertTrue(thread.research.description)
+            self.assertTrue(thread.research.hypothesis)
+            self.assertTrue(thread.research.company_name)
 
     def test_thread_title_fallback_order(self) -> None:
         thread = ThreadState(thread_id="t1")
@@ -80,6 +83,7 @@ class LocalStoreTests(unittest.TestCase):
             self.assertTrue(thread.research.research_id)
             self.assertTrue(thread.research.goal)
             self.assertTrue(thread.context.phone)
+            self.assertTrue(thread.research.problem_context)
 
 
 if __name__ == "__main__":

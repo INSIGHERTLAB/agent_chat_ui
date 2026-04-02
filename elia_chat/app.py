@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from dataclasses import dataclass
 
 from textual import on, work
+from textual import events
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
@@ -36,6 +37,20 @@ class ThreadList(OptionList):
 
 
 class ResearchSidebar(Vertical):
+    class NumberedQuestionsInput(TextArea):
+        def on_mount(self) -> None:
+            if not self.text.strip():
+                self.text = "1. "
+
+        def on_key(self, event: events.Key) -> None:
+            if event.key != "enter":
+                return
+            event.prevent_default()
+            event.stop()
+            lines = [line for line in self.text.splitlines() if line.strip()]
+            next_num = len(lines) + 1
+            self.insert(f"\n{next_num}. ")
+
     class SaveRequested(Message):
         pass
 
@@ -76,7 +91,7 @@ class ResearchSidebar(Vertical):
         fit.styles.height = 6
         yield fit
 
-        questions = TextArea(id="field-questions")
+        questions = self.NumberedQuestionsInput(id="field-questions")
         questions.border_title = "questions (text || goal)"
         questions.styles.height = 8
         yield questions
@@ -111,9 +126,10 @@ class ResearchSidebar(Vertical):
             self.query_one(f"#field-{key}", Input).value = value
 
         self.query_one("#field-fit_criteria", TextArea).text = "\n".join(r.fit_criteria)
-        self.query_one("#field-questions", TextArea).text = "\n".join(
-            f"{q.text} || {q.goal}" for q in sorted(r.questions, key=lambda x: x.position)
-        )
+        question_lines = []
+        for idx, q in enumerate(sorted(r.questions, key=lambda x: x.position), start=1):
+            question_lines.append(f"{idx}. {q.text} || {q.goal}")
+        self.query_one("#field-questions", TextArea).text = "\n".join(question_lines) if question_lines else "1. "
         self._update_metadata(thread)
 
     def to_models(self) -> tuple[ResearchInfo, ChatContext]:
@@ -136,10 +152,13 @@ class ResearchSidebar(Vertical):
         for idx, line in enumerate(self.query_one("#field-questions", TextArea).text.splitlines(), start=1):
             if not line.strip():
                 continue
+            raw_line = line.strip()
+            if raw_line[0].isdigit() and ". " in raw_line:
+                raw_line = raw_line.split(". ", 1)[1].strip()
             if "||" in line:
-                text, goal = [part.strip() for part in line.split("||", 1)]
+                text, goal = [part.strip() for part in raw_line.split("||", 1)]
             else:
-                text, goal = line.strip(), ""
+                text, goal = raw_line, ""
             questions.append(ResearchQuestionDTO(position=idx, text=text, goal=goal))
 
         research = ResearchInfo(
@@ -202,6 +221,8 @@ class AgentResearchApp(App[None]):
     #ops-log { height: 7; border: round $panel; }
     #messages { height: 1fr; border: round $surface; overflow-y: auto; }
     #composer { height: 7; }
+    #send-actions { width: 1fr; height: auto; }
+    #send-actions Button { width: 1fr; margin-right: 1; }
     .panel-title { text-style: bold; }
     .section-title { text-style: bold italic; color: $text-muted; margin-top: 1; }
     """
@@ -242,9 +263,10 @@ class AgentResearchApp(App[None]):
                 composer = TextArea(id="composer")
                 composer.border_title = "Message"
                 yield composer
-                yield Button("Send", id="send", variant="primary")
-                yield Button("Send first ping", id="send-first", variant="warning")
-                yield Button("Send reply", id="send-reply")
+                with Horizontal(id="send-actions"):
+                    yield Button("Send", id="send", variant="primary")
+                    yield Button("Send first ping", id="send-first", variant="warning")
+                    yield Button("Send reply", id="send-reply")
             yield ResearchSidebar(id="sidebar")
         yield Footer()
 

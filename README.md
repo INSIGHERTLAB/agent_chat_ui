@@ -75,6 +75,7 @@ Then open `http://localhost:8000`.
 - Thread title: `title` -> `research_id` -> `Untitled thread`.
 - On `Save research`, missing/invalid required fields are auto-filled to valid defaults before sending.
 - New threads are prefilled with starter research data (research_id, goal, criteria, and sample questions).
+- Questions field supports numbered entry: press Enter to continue as `1.`, `2.`, `3.`...
 
 ## Smoke check (non-UI)
 
