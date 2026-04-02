@@ -179,6 +179,8 @@ class AgentResearchApp(App[None]):
         Binding("ctrl+n", "new_thread", "New thread"),
         Binding("ctrl+s", "save_state", "Save state"),
         Binding("ctrl+j", "send_from_binding", "Send"),
+        Binding("f5", "send_first_from_binding", "Send first ping"),
+        Binding("f6", "send_reply_from_binding", "Send reply"),
         Binding("f1", "focus('composer')", "Focus composer"),
     ]
 
@@ -189,12 +191,14 @@ class AgentResearchApp(App[None]):
         self.prompt_client = PromptServiceClient()
         self.agent_client = AgentClient()
         self.sending = False
+        self.status_text = "Ready"
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         with Horizontal(id="main"):
             yield ThreadList(id="threads")
             with Vertical(id="chat"):
+                yield Label(self.status_text, id="status-line")
                 messages_log = RichLog(id="messages", markup=True, wrap=True, auto_scroll=True)
                 messages_log.border_title = "Chat"
                 yield messages_log
@@ -245,7 +249,11 @@ class AgentResearchApp(App[None]):
             return
         for message in messages:
             prefix = "You" if message.role == "user" else "Agent"
-            style = "bold cyan" if message.role == "user" else "bold green"
+            is_event = message.text.startswith("[") and message.text.endswith("]")
+            if is_event:
+                style = "bold magenta"
+            else:
+                style = "bold cyan" if message.role == "user" else "bold green"
             action = message.meta.get("action")
             if action:
                 log.write(f"[{style}]{prefix}[/] ({action})")
@@ -287,10 +295,12 @@ class AgentResearchApp(App[None]):
     async def save_research(self) -> None:
         self.persist_from_sidebar()
         thread = self.current_thread
+        self._set_status("Saving research prompt...")
         try:
             response_payload = await self.prompt_client.save_research(thread.research)
         except Exception as exc:
             self.notify(str(exc), severity="error", title="Save failed")
+            self._set_status(f"Save failed: {exc}")
             return
         if isinstance(response_payload, dict):
             source = response_payload.get("prompt") if isinstance(response_payload.get("prompt"), dict) else response_payload
@@ -303,6 +313,7 @@ class AgentResearchApp(App[None]):
         self.refresh_threads()
         self.store.save(self.state)
         self.notify("Research saved")
+        self._set_status("Research saved")
 
     @on(ResearchSidebar.LoadRequested)
     async def load_research(self) -> None:
@@ -313,14 +324,17 @@ class AgentResearchApp(App[None]):
             self.notify("Fill research_id first", severity="warning")
             return
 
+        self._set_status(f"Loading research {research_id}...")
         try:
             exists_payload = await self.prompt_client.prompt_exists(research_id)
             if isinstance(exists_payload, dict) and exists_payload.get("exists") is False:
                 self.notify(f"Research {research_id!r} not found", severity="warning")
+                self._set_status(f"Research {research_id!r} not found")
                 return
             payload = await self.prompt_client.load_research(research_id)
         except Exception as exc:
             self.notify(str(exc), severity="error", title="Load failed")
+            self._set_status(f"Load failed: {exc}")
             return
 
         thread.research = self._research_from_payload(payload)
@@ -328,6 +342,7 @@ class AgentResearchApp(App[None]):
         self.refresh_threads()
         self.store.save(self.state)
         self.notify("Research loaded")
+        self._set_status(f"Research {research_id} loaded")
 
     @on(Button.Pressed, "#send")
     def send_pressed(self) -> None:
@@ -344,12 +359,19 @@ class AgentResearchApp(App[None]):
     def action_send_from_binding(self) -> None:
         self.send_message()
 
+    def action_send_first_from_binding(self) -> None:
+        self.send_message(force_first=True)
+
+    def action_send_reply_from_binding(self) -> None:
+        self.send_message(force_first=False)
+
     @work
     async def send_message(self, force_first: bool | None = None) -> None:
         if self.sending:
             self.notify("Wait for the current request to finish", severity="warning")
             return
         self.sending = True
+        self._set_status("Sending request to interview agent...")
         try:
             self.persist_from_sidebar()
             thread = self.current_thread
@@ -382,6 +404,7 @@ class AgentResearchApp(App[None]):
                 )
             except Exception as exc:
                 self.notify(str(exc), severity="error", title="Agent failed")
+                self._set_status(f"Agent failed: {exc}")
                 return
 
             thread.started = True
@@ -391,6 +414,7 @@ class AgentResearchApp(App[None]):
             self.refresh_threads()
             self.store.save(self.state)
             self.notify("Agent response received", title="Interview agent")
+            self._set_status("Agent response received")
         finally:
             self.sending = False
 
@@ -425,6 +449,10 @@ class AgentResearchApp(App[None]):
             contact_origin=payload.get("contact_origin"),
             questions=questions,
         )
+
+    def _set_status(self, text: str) -> None:
+        self.status_text = text
+        self.query_one("#status-line", Label).update(text)
 
 
 if __name__ == "__main__":

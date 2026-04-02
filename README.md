@@ -7,6 +7,9 @@ Keyboard-centric internal Textual app for testing interview/research agent flow.
 - Thread-based chats with local JSON state.
 - Right research sidebar (edit research + chat context).
 - Keyboard-first flow (`Ctrl+N` new thread, `Ctrl+J` send, `Ctrl+S` save local state).
+- Fast send keys:
+  - `F5` send as first ping
+  - `F6` send as reply
 - Quick controls for message types:
   - `Send first ping` (forces `first_message`)
   - `Send reply` (forces `user_reply`)
