@@ -25,14 +25,13 @@ from elia_chat.state_store import LocalStore
 
 class ThreadList(OptionList):
     class ThreadSelected(Message):
-        def __init__(self, thread_id: str) -> None:
-            self.thread_id = thread_id
+        def __init__(self, option_index: int) -> None:
+            self.option_index = option_index
             super().__init__()
 
     @on(OptionList.OptionSelected)
     def selected(self, event: OptionList.OptionSelected) -> None:
-        option = self.get_option_at_index(event.option_index)
-        self.post_message(self.ThreadSelected(str(option.id)))
+        self.post_message(self.ThreadSelected(event.option_index))
 
 
 class ResearchSidebar(Vertical):
@@ -200,6 +199,7 @@ class AgentResearchApp(App[None]):
         self.agent_client = AgentClient()
         self.sending = False
         self.status_text = "Ready"
+        self.thread_order: list[str] = []
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -239,11 +239,13 @@ class AgentResearchApp(App[None]):
     def refresh_threads(self) -> None:
         widget = self.query_one(ThreadList)
         widget.clear_options()
+        self.thread_order = []
         for thread in self.state.threads:
-            widget.add_option(thread.title, id=thread.thread_id)
+            widget.add_option(thread.title)
+            self.thread_order.append(thread.thread_id)
         current = self.current_thread.thread_id
-        for idx, option in enumerate(widget.options):
-            if str(option.id) == current:
+        for idx, thread_id in enumerate(self.thread_order):
+            if thread_id == current:
                 widget.highlighted = idx
                 break
 
@@ -284,7 +286,9 @@ class AgentResearchApp(App[None]):
     @on(ThreadList.ThreadSelected)
     def thread_selected(self, event: ThreadList.ThreadSelected) -> None:
         self.persist_from_sidebar()
-        self.state.selected_thread_id = event.thread_id
+        if event.option_index < 0 or event.option_index >= len(self.thread_order):
+            return
+        self.state.selected_thread_id = self.thread_order[event.option_index]
         self.load_thread_to_ui(self.current_thread)
         self.store.save(self.state)
         self._set_status(f"Switched to {self.current_thread.title}")
