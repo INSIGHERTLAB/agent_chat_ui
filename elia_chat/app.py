@@ -21,6 +21,7 @@ from elia_chat.research_models import (
     now_iso,
 )
 from elia_chat.normalization import normalize_context, normalize_research_for_save
+from elia_chat.env_loader import load_dotenv
 from elia_chat.services import AgentClient, PromptServiceClient, parse_agent_pipeline
 from elia_chat.state_store import LocalStore
 
@@ -238,6 +239,7 @@ class AgentResearchApp(App[None]):
 
     def __init__(self) -> None:
         super().__init__()
+        load_dotenv()
         self.store = LocalStore()
         self.state: AppState = self.store.load()
         self.prompt_client = PromptServiceClient()

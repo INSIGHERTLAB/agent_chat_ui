@@ -36,6 +36,8 @@ PROMPT_SERVICE_URL=http://localhost:8001
 APP_STATE_PATH=./data/state.json
 ```
 
+`elia` now loads values from local `.env` automatically on startup (without exporting manually).
+
 Agent base URL:
 1. `AGENTS__INTERVIEW__URL` (recommended)
 2. `AGENT_URL` is legacy fallback only.

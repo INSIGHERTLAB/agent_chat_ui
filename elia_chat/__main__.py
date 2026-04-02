@@ -3,12 +3,14 @@
 import click
 
 from elia_chat.app import AgentResearchApp
+from elia_chat.env_loader import load_dotenv
 
 
 @click.group(invoke_without_command=True)
 @click.pass_context
 def cli(ctx: click.Context) -> None:
     """Run the research-agent chat tool."""
+    load_dotenv()
     if ctx.invoked_subcommand is None:
         AgentResearchApp().run()
 
