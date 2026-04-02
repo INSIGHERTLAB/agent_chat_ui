@@ -9,6 +9,7 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.message import Message
+from textual.timer import Timer
 from textual.widgets import Button, Footer, Header, Input, Label, OptionList, RichLog, TextArea
 
 from elia_chat.research_models import (
@@ -247,6 +248,8 @@ class AgentResearchApp(App[None]):
         self.sending = False
         self.status_text = "Ready"
         self.thread_order: list[str] = []
+        self.typing_indicator_timer: Timer | None = None
+        self.typing_indicator_step = 0
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -323,9 +326,13 @@ class AgentResearchApp(App[None]):
         for message in messages:
             prefix = "You" if message.role == "user" else "Agent"
             is_event = message.text.startswith("[") and message.text.endswith("]")
+            is_typing_indicator = bool(message.meta.get("typing_indicator"))
             if is_event:
                 style = "bold magenta"
                 prefix = "Event"
+            elif is_typing_indicator:
+                style = "italic yellow"
+                prefix = "Agent"
             else:
                 style = "bold cyan" if message.role == "user" else "bold green"
             action = message.meta.get("action")
@@ -340,6 +347,8 @@ class AgentResearchApp(App[None]):
         sidebar = self.query_one(ResearchSidebar)
         research, context = sidebar.to_models()
         thread = self.current_thread
+        if research != thread.research or context != thread.context:
+            thread.research_saved = False
         thread.research = research
         thread.context = context
 
@@ -379,38 +388,7 @@ class AgentResearchApp(App[None]):
     @on(ResearchSidebar.SaveRequested)
     async def save_research(self) -> None:
         self.persist_from_sidebar()
-        thread = self.current_thread
-        normalized_research, warnings = normalize_research_for_save(
-            thread.research, thread.thread_id
-        )
-        normalized_context = normalize_context(thread.context)
-        thread.research = normalized_research
-        thread.context = normalized_context
-        self.query_one(ResearchSidebar).fill(thread)
-        for warning in warnings:
-            self.notify(warning, severity="warning", title="Auto-filled")
-            self._log_operation(warning)
-
-        self._set_status("Saving research prompt...")
-        try:
-            response_payload = await self.prompt_client.save_research(thread.research)
-        except Exception as exc:
-            self.notify(str(exc), severity="error", title="Save failed")
-            self._set_status(f"Save failed: {exc}")
-            return
-        if isinstance(response_payload, dict):
-            source = response_payload.get("prompt") if isinstance(response_payload.get("prompt"), dict) else response_payload
-            thread.research.version = source.get("version", thread.research.version)
-            thread.research.profile_version_id = source.get(
-                "profile_version_id", thread.research.profile_version_id
-            )
-        thread.last_saved_at = now_iso()
-        self.query_one(ResearchSidebar)._update_metadata(thread)
-        self.refresh_threads()
-        self.store.save(self.state)
-        self.notify("Research saved")
-        self._set_status("Research saved")
-        self._log_operation("Research saved to prompt-service")
+        await self._save_research_to_service(auto=False)
 
     @on(ResearchSidebar.LoadRequested)
     async def load_research(self) -> None:
@@ -510,6 +488,13 @@ class AgentResearchApp(App[None]):
                 self.notify("research_id is required", severity="warning")
                 self._set_status("Send skipped: research_id is required")
                 return
+            if not thread.research_saved:
+                self._log_operation("Research wasn't saved yet; auto-saving before send")
+                saved_ok = await self._save_research_to_service(auto=True)
+                if not saved_ok:
+                    self._set_status("Send skipped: auto-save failed")
+                    return
+                thread = self.current_thread
 
             if text:
                 composer.clear()
@@ -519,6 +504,7 @@ class AgentResearchApp(App[None]):
                 self._log_operation("Outgoing content is empty (generator trigger mode)")
 
             self._log_operation(f"Outgoing message_type={message_type}")
+            self._start_typing_indicator(thread)
 
             try:
                 response = await self.agent_client.send_text(
@@ -532,6 +518,8 @@ class AgentResearchApp(App[None]):
                 self._set_status(f"Agent failed: {exc}")
                 self._log_operation(f"Agent failed: {exc}")
                 return
+            finally:
+                self._stop_typing_indicator(thread)
 
             thread.started = True
             thread.started_research_id = thread.research.research_id
@@ -552,6 +540,83 @@ class AgentResearchApp(App[None]):
             self._log_operation("Agent response received")
         finally:
             self.sending = False
+
+    async def _save_research_to_service(self, auto: bool) -> bool:
+        thread = self.current_thread
+        normalized_research, warnings = normalize_research_for_save(
+            thread.research, thread.thread_id
+        )
+        normalized_context = normalize_context(thread.context)
+        thread.research = normalized_research
+        thread.context = normalized_context
+        self.query_one(ResearchSidebar).fill(thread)
+        for warning in warnings:
+            self.notify(warning, severity="warning", title="Auto-filled")
+            self._log_operation(warning)
+
+        status_prefix = "Auto-saving" if auto else "Saving"
+        self._set_status(f"{status_prefix} research prompt...")
+        try:
+            response_payload = await self.prompt_client.save_research(thread.research)
+        except Exception as exc:
+            title = "Auto-save failed" if auto else "Save failed"
+            self.notify(str(exc), severity="error", title=title)
+            self._set_status(f"{title}: {exc}")
+            return False
+        if isinstance(response_payload, dict):
+            source = response_payload.get("prompt") if isinstance(response_payload.get("prompt"), dict) else response_payload
+            thread.research.version = source.get("version", thread.research.version)
+            thread.research.profile_version_id = source.get(
+                "profile_version_id", thread.research.profile_version_id
+            )
+        thread.last_saved_at = now_iso()
+        thread.research_saved = True
+        self.query_one(ResearchSidebar)._update_metadata(thread)
+        self.refresh_threads()
+        self.store.save(self.state)
+        if auto:
+            self._log_operation("Research auto-saved to prompt-service")
+            self.notify("Research auto-saved before send")
+        else:
+            self.notify("Research saved")
+            self._set_status("Research saved")
+            self._log_operation("Research saved to prompt-service")
+        return True
+
+    def _start_typing_indicator(self, thread: ThreadState) -> None:
+        self._stop_typing_indicator(thread)
+        thread.messages.append(
+            ThreadMessage(
+                role="assistant",
+                text="Agent is typing",
+                meta={"typing_indicator": True},
+            )
+        )
+        self.typing_indicator_step = 0
+        self.render_messages(thread.messages)
+        self.typing_indicator_timer = self.set_interval(0.35, self._tick_typing_indicator)
+
+    def _stop_typing_indicator(self, thread: ThreadState) -> None:
+        if self.typing_indicator_timer is not None:
+            self.typing_indicator_timer.stop()
+            self.typing_indicator_timer = None
+        thread.messages = [
+            message for message in thread.messages if not message.meta.get("typing_indicator")
+        ]
+        self.render_messages(thread.messages)
+
+    def _tick_typing_indicator(self) -> None:
+        if not self.sending:
+            return
+        thread = self.current_thread
+        for message in reversed(thread.messages):
+            if message.meta.get("typing_indicator"):
+                self.typing_indicator_step = (self.typing_indicator_step + 1) % 4
+                dots = "." * self.typing_indicator_step
+                message.text = f"Agent is typing{dots}"
+                self.render_messages(thread.messages)
+                self._set_status(f"Waiting for agent response{dots}")
+                return
 
     def _research_from_payload(self, payload: dict) -> ResearchInfo:
         if "prompt" in payload and isinstance(payload["prompt"], dict):

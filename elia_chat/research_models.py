@@ -59,6 +59,7 @@ class ThreadState:
     started: bool = False
     started_research_id: str | None = None
     last_saved_at: str | None = None
+    research_saved: bool = False
 
     @property
     def title(self) -> str:
@@ -132,4 +133,5 @@ def thread_from_dict(data: dict[str, Any]) -> ThreadState:
         started=bool(data.get("started", False)),
         started_research_id=data.get("started_research_id"),
         last_saved_at=data.get("last_saved_at"),
+        research_saved=bool(data.get("research_saved", False)),
     )
