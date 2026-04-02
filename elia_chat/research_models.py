@@ -57,6 +57,7 @@ class ThreadState:
     context: ChatContext = field(default_factory=ChatContext)
     messages: list[ThreadMessage] = field(default_factory=list)
     started: bool = False
+    started_research_id: str | None = None
     last_saved_at: str | None = None
 
     @property
@@ -129,5 +130,6 @@ def thread_from_dict(data: dict[str, Any]) -> ThreadState:
         context=context,
         messages=messages,
         started=bool(data.get("started", False)),
+        started_research_id=data.get("started_research_id"),
         last_saved_at=data.get("last_saved_at"),
     )

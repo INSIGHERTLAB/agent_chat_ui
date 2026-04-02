@@ -29,6 +29,22 @@ class PromptServiceClient:
         url = f"{self.base_url}/researches/{research_id}/prompt"
         return await _json_request("GET", url)
 
+    async def prompt_exists(self, research_id: str) -> dict:
+        url = f"{self.base_url}/researches/{research_id}/prompt/exists"
+        return await _json_request("GET", url)
+
+    async def latest_version(self, research_id: str) -> dict:
+        url = f"{self.base_url}/researches/{research_id}/prompt/latest-version"
+        return await _json_request("GET", url)
+
+    async def versions(self, research_id: str) -> dict:
+        url = f"{self.base_url}/researches/{research_id}/prompt/versions"
+        return await _json_request("GET", url)
+
+    async def version_by_number(self, research_id: str, version: int) -> dict:
+        url = f"{self.base_url}/researches/{research_id}/prompt/versions/{version}"
+        return await _json_request("GET", url)
+
 
 class AgentClient:
     def __init__(self) -> None:
@@ -43,7 +59,22 @@ class AgentClient:
         context: ChatContext,
         is_first_message: bool,
     ) -> dict:
-        payload = {
+        payload = self.build_payload(
+            research_id=research_id,
+            context=context,
+            is_first_message=is_first_message,
+            content=[{"type": "text", "text": message_text, "urls": None}],
+        )
+        return await _json_request("POST", self.url, payload)
+
+    def build_payload(
+        self,
+        research_id: str,
+        context: ChatContext,
+        is_first_message: bool,
+        content: list[dict],
+    ) -> dict:
+        return {
             "income": {
                 "message_type": "first_message" if is_first_message else "user_reply",
                 "research_id": research_id,
@@ -56,11 +87,10 @@ class AgentClient:
                     },
                     "sent_at": datetime.now(timezone.utc).isoformat(),
                     "external_message_id": None,
-                    "content": [{"type": "text", "text": message_text, "urls": None}],
+                    "content": content,
                 },
             }
         }
-        return await _json_request("POST", self.url, payload)
 
 
 def parse_agent_pipeline(response: dict) -> list[ThreadMessage]:
