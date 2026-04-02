@@ -10,6 +10,16 @@ from elia_chat.state_store import LocalStore
 
 
 class LocalStoreTests(unittest.TestCase):
+    def test_thread_title_fallback_order(self) -> None:
+        thread = ThreadState(thread_id="t1")
+        self.assertEqual(thread.title, "Untitled thread")
+
+        thread.research.research_id = "research_42"
+        self.assertEqual(thread.title, "research_42")
+
+        thread.research.title = "Discovery interview"
+        self.assertEqual(thread.title, "Discovery interview")
+
     def test_bootstrap_when_missing_file(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "state.json"

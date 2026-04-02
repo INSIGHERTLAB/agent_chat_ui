@@ -287,6 +287,8 @@ class AgentResearchApp(App[None]):
         self.state.selected_thread_id = event.thread_id
         self.load_thread_to_ui(self.current_thread)
         self.store.save(self.state)
+        self._set_status(f"Switched to {self.current_thread.title}")
+        self._log_operation(f"Switched thread: {self.current_thread.thread_id}")
 
     async def action_new_thread(self) -> None:
         self.persist_from_sidebar()
@@ -296,6 +298,8 @@ class AgentResearchApp(App[None]):
         self.refresh_threads()
         self.load_thread_to_ui(thread)
         self.store.save(self.state)
+        self._set_status("New thread created")
+        self._log_operation(f"New thread created: {thread.thread_id}")
 
     async def action_save_state(self) -> None:
         self.persist_from_sidebar()
@@ -336,6 +340,7 @@ class AgentResearchApp(App[None]):
         research_id = thread.research.research_id
         if not research_id:
             self.notify("Fill research_id first", severity="warning")
+            self._set_status("Load skipped: empty research_id")
             return
 
         self._set_status(f"Loading research {research_id}...")
@@ -396,9 +401,11 @@ class AgentResearchApp(App[None]):
             text = composer.text.strip()
             if not text:
                 self.notify("Message is empty", severity="warning")
+                self._set_status("Send skipped: empty message")
                 return
             if not thread.research.research_id:
                 self.notify("research_id is required", severity="warning")
+                self._set_status("Send skipped: research_id is required")
                 return
 
             composer.clear()
