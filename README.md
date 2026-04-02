@@ -35,7 +35,7 @@ Copy `.env.example` and adjust values:
 ```bash
 AGENTS__INTERVIEW__URL=http://localhost:3000
 AGENT_ENDPOINT=interview
-PROMPT_SERVICE_URL=http://localhost:8001
+PROMPT_SERVICE_URL=http://localhost:8000/v1
 APP_STATE_PATH=./data/state.json
 ```
 
@@ -60,7 +60,7 @@ uv run elia run
 uv run elia web --host 0.0.0.0 --port 8000
 ```
 
-Then open `http://localhost:8000`.
+Then open `http://localhost:8000/v1`.
 
 ## Docker (browser mode)
 
@@ -69,7 +69,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Then open `http://localhost:8000`.
+Then open `http://localhost:8000/v1`.
 
 ## Notes
 

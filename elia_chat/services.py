@@ -18,7 +18,7 @@ SUPPORTED_MESSAGE_TYPES = {
 
 class PromptServiceClient:
     def __init__(self) -> None:
-        self.base_url = os.getenv("PROMPT_SERVICE_URL", "http://localhost:8001").rstrip("/")
+        self.base_url = os.getenv("PROMPT_SERVICE_URL", "http://localhost:8000/v1").rstrip("/")
 
     async def save_research(self, research: ResearchInfo) -> dict:
         if not research.research_id:
