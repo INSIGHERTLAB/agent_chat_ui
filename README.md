@@ -71,6 +71,7 @@ Then open `http://localhost:8000`.
 
 - Prototype-only local storage (`APP_STATE_PATH`) and no external DB required.
 - `research_id` must be filled before sending messages.
+- `version` field in sidebar expects an integer (invalid values are ignored with warning).
 - Thread title: `title` -> `research_id` -> `Untitled thread`.
 
 ## Smoke check (non-UI)

@@ -114,6 +114,18 @@ class ResearchSidebar(Vertical):
 
     def to_models(self) -> tuple[ResearchInfo, ChatContext]:
         data = {f: self.query_one(f"#field-{f}", Input).value.strip() for f in self.FIELDS}
+        version_raw = data["version"]
+        version: int | None = None
+        if version_raw:
+            try:
+                version = int(version_raw)
+            except ValueError:
+                self.notify(
+                    "Field 'version' must be an integer. Value ignored.",
+                    title="Invalid version",
+                    severity="warning",
+                )
+                version = None
 
         fit_criteria = [line.strip() for line in self.query_one("#field-fit_criteria", TextArea).text.splitlines() if line.strip()]
         questions: list[ResearchQuestionDTO] = []
@@ -129,7 +141,7 @@ class ResearchSidebar(Vertical):
         research = ResearchInfo(
             research_id=data["research_id"],
             profile_version_id=data["profile_version_id"] or None,
-            version=int(data["version"]) if data["version"] else None,
+            version=version,
             title=data["title"],
             description=data["description"] or None,
             goal=data["goal"],
