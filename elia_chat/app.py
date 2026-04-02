@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from dataclasses import dataclass
 
 from textual import on, work
@@ -62,7 +63,12 @@ class ResearchSidebar(Vertical):
 
     def compose(self) -> ComposeResult:
         yield Label("Research", classes="panel-title")
-        for field in self.FIELDS:
+        yield Label("Research info", classes="section-title")
+        for field in self.FIELDS[:13]:
+            yield Input(placeholder=field, id=f"field-{field}")
+
+        yield Label("Chat context", classes="section-title")
+        for field in self.FIELDS[13:]:
             yield Input(placeholder=field, id=f"field-{field}")
 
         fit = TextArea(id="field-fit_criteria")
@@ -170,9 +176,11 @@ class AgentResearchApp(App[None]):
     #threads { width: 28; border: round $primary; }
     #chat { width: 1fr; border: round $accent; }
     #sidebar { width: 44; border: round $secondary; overflow-y: auto; }
+    #ops-log { height: 7; border: round $panel; }
     #messages { height: 1fr; border: round $surface; overflow-y: auto; }
     #composer { height: 7; }
     .panel-title { text-style: bold; }
+    .section-title { text-style: bold italic; color: $text-muted; margin-top: 1; }
     """
 
     BINDINGS = [
@@ -199,6 +207,9 @@ class AgentResearchApp(App[None]):
             yield ThreadList(id="threads")
             with Vertical(id="chat"):
                 yield Label(self.status_text, id="status-line")
+                ops_log = RichLog(id="ops-log", wrap=True, auto_scroll=True)
+                ops_log.border_title = "Operations"
+                yield ops_log
                 messages_log = RichLog(id="messages", markup=True, wrap=True, auto_scroll=True)
                 messages_log.border_title = "Chat"
                 yield messages_log
@@ -252,6 +263,7 @@ class AgentResearchApp(App[None]):
             is_event = message.text.startswith("[") and message.text.endswith("]")
             if is_event:
                 style = "bold magenta"
+                prefix = "Event"
             else:
                 style = "bold cyan" if message.role == "user" else "bold green"
             action = message.meta.get("action")
@@ -290,6 +302,7 @@ class AgentResearchApp(App[None]):
         self.refresh_threads()
         self.store.save(self.state)
         self.notify("Local state saved")
+        self._log_operation("Local state saved")
 
     @on(ResearchSidebar.SaveRequested)
     async def save_research(self) -> None:
@@ -314,6 +327,7 @@ class AgentResearchApp(App[None]):
         self.store.save(self.state)
         self.notify("Research saved")
         self._set_status("Research saved")
+        self._log_operation("Research saved to prompt-service")
 
     @on(ResearchSidebar.LoadRequested)
     async def load_research(self) -> None:
@@ -330,6 +344,7 @@ class AgentResearchApp(App[None]):
             if isinstance(exists_payload, dict) and exists_payload.get("exists") is False:
                 self.notify(f"Research {research_id!r} not found", severity="warning")
                 self._set_status(f"Research {research_id!r} not found")
+                self._log_operation(f"Research {research_id!r} not found")
                 return
             payload = await self.prompt_client.load_research(research_id)
         except Exception as exc:
@@ -343,6 +358,7 @@ class AgentResearchApp(App[None]):
         self.store.save(self.state)
         self.notify("Research loaded")
         self._set_status(f"Research {research_id} loaded")
+        self._log_operation(f"Research {research_id} loaded")
 
     @on(Button.Pressed, "#send")
     def send_pressed(self) -> None:
@@ -372,6 +388,7 @@ class AgentResearchApp(App[None]):
             return
         self.sending = True
         self._set_status("Sending request to interview agent...")
+        self._log_operation("Sending request to interview-agent")
         try:
             self.persist_from_sidebar()
             thread = self.current_thread
@@ -405,6 +422,7 @@ class AgentResearchApp(App[None]):
             except Exception as exc:
                 self.notify(str(exc), severity="error", title="Agent failed")
                 self._set_status(f"Agent failed: {exc}")
+                self._log_operation(f"Agent failed: {exc}")
                 return
 
             thread.started = True
@@ -415,6 +433,7 @@ class AgentResearchApp(App[None]):
             self.store.save(self.state)
             self.notify("Agent response received", title="Interview agent")
             self._set_status("Agent response received")
+            self._log_operation("Agent response received")
         finally:
             self.sending = False
 
@@ -453,6 +472,10 @@ class AgentResearchApp(App[None]):
     def _set_status(self, text: str) -> None:
         self.status_text = text
         self.query_one("#status-line", Label).update(text)
+
+    def _log_operation(self, text: str) -> None:
+        now = datetime.now(timezone.utc).strftime("%H:%M:%S")
+        self.query_one("#ops-log", RichLog).write(f"[{now}] {text}")
 
 
 if __name__ == "__main__":

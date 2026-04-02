@@ -72,3 +72,11 @@ Then open `http://localhost:8000`.
 - Prototype-only local storage (`APP_STATE_PATH`) and no external DB required.
 - `research_id` must be filled before sending messages.
 - Thread title: `title` -> `research_id` -> `Untitled thread`.
+
+## Smoke check (non-UI)
+
+```bash
+python scripts/smoke_flow_check.py
+```
+
+Expected output: `{"ok": true, "checks": ["state", "pipeline"]}`
