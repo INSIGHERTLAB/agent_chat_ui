@@ -189,6 +189,8 @@ class AgentResearchApp(App[None]):
     Screen { layout: vertical; }
     #main { height: 1fr; }
     #threads { width: 28; border: round $primary; }
+    #threads-panel { width: 28; }
+    #new-thread-btn { width: 1fr; margin: 0 0 1 0; }
     #chat { width: 1fr; border: round $accent; }
     #sidebar { width: 44; border: round $secondary; overflow-y: auto; }
     #sidebar Input { width: 1fr; margin-bottom: 1; }
@@ -226,7 +228,9 @@ class AgentResearchApp(App[None]):
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         with Horizontal(id="main"):
-            yield ThreadList(id="threads")
+            with Vertical(id="threads-panel"):
+                yield Button("+ New thread", id="new-thread-btn", variant="primary")
+                yield ThreadList(id="threads")
             with Vertical(id="chat"):
                 yield Label(self.status_text, id="status-line")
                 ops_log = RichLog(id="ops-log", wrap=True, auto_scroll=True)
@@ -326,6 +330,10 @@ class AgentResearchApp(App[None]):
         self.store.save(self.state)
         self._set_status("New thread created")
         self._log_operation(f"New thread created: {thread.thread_id}")
+
+    @on(Button.Pressed, "#new-thread-btn")
+    async def new_thread_pressed(self) -> None:
+        await self.action_new_thread()
 
     async def action_save_state(self) -> None:
         self.persist_from_sidebar()
