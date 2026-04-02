@@ -10,6 +10,17 @@ from elia_chat.state_store import LocalStore
 
 
 class LocalStoreTests(unittest.TestCase):
+    def test_new_thread_has_prefilled_research_data(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "state.json"
+            store = LocalStore(str(path))
+            thread = store.new_thread()
+
+            self.assertTrue(thread.research.research_id.startswith("research_thread_"))
+            self.assertEqual(thread.research.version, 1)
+            self.assertTrue(thread.research.questions)
+            self.assertTrue(thread.research.fit_criteria)
+
     def test_thread_title_fallback_order(self) -> None:
         thread = ThreadState(thread_id="t1")
         self.assertEqual(thread.title, "Untitled thread")
@@ -50,6 +61,25 @@ class LocalStoreTests(unittest.TestCase):
             self.assertEqual(len(loaded.threads), 2)
             self.assertEqual(loaded.selected_thread_id, "thread-2")
             self.assertEqual(loaded.threads[0].started_research_id, "r1")
+
+    def test_load_applies_defaults_to_legacy_empty_state(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "state.json"
+            path.write_text(
+                json.dumps(
+                    {
+                        "selected_thread_id": "thread-x",
+                        "threads": [{"thread_id": "thread-x", "research": {}, "context": {}}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            store = LocalStore(str(path))
+            state = store.load()
+            thread = state.threads[0]
+            self.assertTrue(thread.research.research_id)
+            self.assertTrue(thread.research.goal)
+            self.assertTrue(thread.context.phone)
 
 
 if __name__ == "__main__":

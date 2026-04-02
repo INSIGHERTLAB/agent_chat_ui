@@ -74,6 +74,7 @@ Then open `http://localhost:8000`.
 - `version` field in sidebar expects an integer (invalid values are ignored with warning).
 - Thread title: `title` -> `research_id` -> `Untitled thread`.
 - On `Save research`, missing/invalid required fields are auto-filled to valid defaults before sending.
+- New threads are prefilled with starter research data (research_id, goal, criteria, and sample questions).
 
 ## Smoke check (non-UI)
 

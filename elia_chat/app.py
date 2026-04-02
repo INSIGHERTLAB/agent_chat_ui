@@ -73,15 +73,18 @@ class ResearchSidebar(Vertical):
 
         fit = TextArea(id="field-fit_criteria")
         fit.border_title = "fit_criteria (one per line)"
+        fit.styles.height = 6
         yield fit
 
         questions = TextArea(id="field-questions")
         questions.border_title = "questions (text || goal)"
+        questions.styles.height = 8
         yield questions
 
         yield Label("metadata", id="metadata")
-        yield Button("Save research", id="save-research", variant="success")
-        yield Button("Load by ID", id="load-research")
+        with Horizontal(id="research-actions"):
+            yield Button("Save research", id="save-research", variant="success")
+            yield Button("Load by ID", id="load-research")
 
     def fill(self, thread: ThreadState) -> None:
         r = thread.research
@@ -186,11 +189,15 @@ class AgentResearchApp(App[None]):
     Screen { layout: vertical; }
     #main { height: 1fr; }
     #threads { width: 28; border: round $primary; }
+    #threads-panel { width: 28; }
+    #new-thread-btn { width: 1fr; margin: 0 0 1 0; }
     #chat { width: 1fr; border: round $accent; }
     #sidebar { width: 44; border: round $secondary; overflow-y: auto; }
     #sidebar Input { width: 1fr; margin-bottom: 1; }
     #sidebar TextArea { width: 1fr; margin-bottom: 1; }
     #sidebar Button { width: 1fr; margin-bottom: 1; }
+    #research-actions { height: auto; width: 1fr; }
+    #research-actions Button { width: 1fr; margin-right: 1; }
     #sidebar Label { margin-left: 1; }
     #ops-log { height: 7; border: round $panel; }
     #messages { height: 1fr; border: round $surface; overflow-y: auto; }
@@ -221,7 +228,9 @@ class AgentResearchApp(App[None]):
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         with Horizontal(id="main"):
-            yield ThreadList(id="threads")
+            with Vertical(id="threads-panel"):
+                yield Button("+ New thread", id="new-thread-btn", variant="primary")
+                yield ThreadList(id="threads")
             with Vertical(id="chat"):
                 yield Label(self.status_text, id="status-line")
                 ops_log = RichLog(id="ops-log", wrap=True, auto_scroll=True)
@@ -321,6 +330,10 @@ class AgentResearchApp(App[None]):
         self.store.save(self.state)
         self._set_status("New thread created")
         self._log_operation(f"New thread created: {thread.thread_id}")
+
+    @on(Button.Pressed, "#new-thread-btn")
+    async def new_thread_pressed(self) -> None:
+        await self.action_new_thread()
 
     async def action_save_state(self) -> None:
         self.persist_from_sidebar()
