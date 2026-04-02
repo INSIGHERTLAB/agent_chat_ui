@@ -273,6 +273,14 @@ class AgentResearchApp(App[None]):
     def on_mount(self) -> None:
         self.refresh_threads()
         self.load_thread_to_ui(self.current_thread)
+        self._log_operation(
+            f"Agent URL: {self.agent_client.url} ({self.agent_client.base_url_source})"
+        )
+        if self.agent_client.has_base_url_conflict:
+            self._log_operation(
+                "Warning: both AGENTS__INTERVIEW__URL and AGENT_URL are set. Using AGENTS__INTERVIEW__URL."
+            )
+        self._log_operation(f"Prompt URL: {self.prompt_client.base_url}")
 
     @property
     def current_thread(self) -> ThreadState:
@@ -501,7 +509,15 @@ class AgentResearchApp(App[None]):
 
             thread.started = True
             thread.started_research_id = thread.research.research_id
-            thread.messages.extend(parse_agent_pipeline(response))
+            parsed_messages = parse_agent_pipeline(response)
+            if not parsed_messages:
+                self.notify(
+                    "Agent returned no batch messages",
+                    severity="warning",
+                    title="Empty agent response",
+                )
+                self._log_operation("Agent returned empty/trigger-only pipeline")
+            thread.messages.extend(parsed_messages)
             self.render_messages(thread.messages)
             self.refresh_threads()
             self.store.save(self.state)

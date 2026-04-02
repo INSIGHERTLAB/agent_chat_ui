@@ -48,9 +48,24 @@ class PromptServiceClient:
 
 class AgentClient:
     def __init__(self) -> None:
-        base = os.getenv("AGENTS__INTERVIEW__URL") or os.getenv("AGENT_URL") or "http://localhost:3000"
+        interview_url = os.getenv("AGENTS__INTERVIEW__URL")
+        fallback_url = os.getenv("AGENT_URL")
+        self.has_base_url_conflict = bool(
+            interview_url and fallback_url and interview_url.rstrip("/") != fallback_url.rstrip("/")
+        )
+        if interview_url:
+            base = interview_url
+            self.base_url_source = "AGENTS__INTERVIEW__URL"
+        elif fallback_url:
+            base = fallback_url
+            self.base_url_source = "AGENT_URL"
+        else:
+            base = "http://localhost:3000"
+            self.base_url_source = "default"
         endpoint = os.getenv("AGENT_ENDPOINT", "interview")
-        self.url = f"{base.rstrip('/')}/{endpoint.lstrip('/')}"
+        self.base_url = base.rstrip("/")
+        self.endpoint = endpoint.lstrip("/")
+        self.url = f"{self.base_url}/{self.endpoint}"
 
     async def send_text(
         self,

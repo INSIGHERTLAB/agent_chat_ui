@@ -21,11 +21,15 @@ class AgentClientTests(unittest.TestCase):
         ):
             client = AgentClient()
             self.assertEqual(client.url, "http://priority.local:9000/interview")
+            self.assertEqual(client.base_url_source, "AGENTS__INTERVIEW__URL")
+            self.assertTrue(client.has_base_url_conflict)
 
     def test_agent_url_fallback(self) -> None:
         with patch.dict(os.environ, {"AGENTS__INTERVIEW__URL": "", "AGENT_URL": "http://fallback.local:3000"}, clear=False):
             client = AgentClient()
             self.assertEqual(client.url, "http://fallback.local:3000/interview")
+            self.assertEqual(client.base_url_source, "AGENT_URL")
+            self.assertFalse(client.has_base_url_conflict)
 
     def test_build_payload_contract(self) -> None:
         client = AgentClient()

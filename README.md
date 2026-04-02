@@ -31,15 +31,14 @@ Copy `.env.example` and adjust values:
 
 ```bash
 AGENTS__INTERVIEW__URL=http://localhost:3000
-AGENT_URL=http://localhost:3000
 AGENT_ENDPOINT=interview
 PROMPT_SERVICE_URL=http://localhost:8001
 APP_STATE_PATH=./data/state.json
 ```
 
-Agent base URL priority:
-1. `AGENTS__INTERVIEW__URL`
-2. `AGENT_URL`
+Agent base URL:
+1. `AGENTS__INTERVIEW__URL` (recommended)
+2. `AGENT_URL` is legacy fallback only.
 3. default `http://localhost:3000`
 
 ## Run (terminal)
@@ -84,3 +83,11 @@ python scripts/smoke_flow_check.py
 ```
 
 Expected output: `{"ok": true, "checks": ["state", "pipeline"]}`
+
+## Troubleshooting
+
+- If send button appears to do nothing, check **Operations** panel:
+  - it now prints resolved Agent URL and Prompt URL on startup.
+  - if both `AGENTS__INTERVIEW__URL` and `AGENT_URL` are set, app logs a warning and uses `AGENTS__INTERVIEW__URL`.
+- `METADATA` file seen inside `.venv/...dist-info/` is package metadata created by pip/uv.  
+  It is not used by app runtime flow and can be ignored.
