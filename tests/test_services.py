@@ -36,13 +36,26 @@ class AgentClientTests(unittest.TestCase):
         payload = client.build_payload(
             research_id="research_1",
             context=ChatContext(source="telegram", phone="+100", peer="42", chat_id=None),
-            is_first_message=True,
+            message_type="first_message",
             content=[{"type": "text", "text": "hello", "urls": None}],
         )
         income = payload["income"]
         self.assertEqual(income["message_type"], "first_message")
         self.assertEqual(income["research_id"], "research_1")
         self.assertEqual(income["message"]["context"]["peer"], "42")
+
+    def test_send_text_rejects_unknown_message_type(self) -> None:
+        client = AgentClient()
+        with self.assertRaises(ValueError):
+            import asyncio
+            asyncio.run(
+                client.send_text(
+                    message_text="x",
+                    research_id="r1",
+                    context=ChatContext(source="telegram", phone="", peer="", chat_id=None),
+                    message_type="unknown_type",
+                )
+            )
 
 
 class PromptServiceClientTests(unittest.IsolatedAsyncioTestCase):

@@ -267,7 +267,9 @@ class AgentResearchApp(App[None]):
                 yield composer
                 with Horizontal(id="send-actions"):
                     yield Button("Send", id="send", variant="primary")
-                    yield Button("Send first ping", id="send-first", variant="warning")
+                    yield Button("Send first", id="send-first", variant="warning")
+                    yield Button("Send ping", id="send-ping")
+                    yield Button("Send recall", id="send-recall")
                     yield Button("Send reply", id="send-reply")
             yield ResearchSidebar(id="sidebar")
         yield Footer()
@@ -448,23 +450,31 @@ class AgentResearchApp(App[None]):
 
     @on(Button.Pressed, "#send-first")
     def send_first_pressed(self) -> None:
-        self.send_message(force_first=True)
+        self.send_message(mode="first")
+
+    @on(Button.Pressed, "#send-ping")
+    def send_ping_pressed(self) -> None:
+        self.send_message(mode="ping")
+
+    @on(Button.Pressed, "#send-recall")
+    def send_recall_pressed(self) -> None:
+        self.send_message(mode="recall")
 
     @on(Button.Pressed, "#send-reply")
     def send_reply_pressed(self) -> None:
-        self.send_message(force_first=False)
+        self.send_message(mode="reply")
 
     def action_send_from_binding(self) -> None:
         self.send_message()
 
     def action_send_first_from_binding(self) -> None:
-        self.send_message(force_first=True)
+        self.send_message(mode="first")
 
     def action_send_reply_from_binding(self) -> None:
-        self.send_message(force_first=False)
+        self.send_message(mode="reply")
 
     @work
-    async def send_message(self, force_first: bool | None = None) -> None:
+    async def send_message(self, mode: str = "auto") -> None:
         if self.sending:
             self.notify("Wait for the current request to finish", severity="warning")
             return
@@ -489,19 +499,28 @@ class AgentResearchApp(App[None]):
             thread.messages.append(ThreadMessage(role="user", text=text))
             self.render_messages(thread.messages)
 
-            is_first_message = (
-                not thread.started
-                or thread.started_research_id != thread.research.research_id
-            )
-            if force_first is not None:
-                is_first_message = force_first
+            if mode == "first":
+                message_type = "first_message"
+            elif mode == "reply":
+                message_type = "user_reply"
+            elif mode == "ping":
+                message_type = "ping_message"
+            elif mode == "recall":
+                message_type = "recall_message"
+            else:
+                message_type = (
+                    "first_message"
+                    if (not thread.started or thread.started_research_id != thread.research.research_id)
+                    else "user_reply"
+                )
+            self._log_operation(f"Outgoing message_type={message_type}")
 
             try:
                 response = await self.agent_client.send_text(
                     message_text=text,
                     research_id=thread.research.research_id,
                     context=thread.context,
-                    is_first_message=is_first_message,
+                    message_type=message_type,
                 )
             except Exception as exc:
                 self.notify(str(exc), severity="error", title="Agent failed")

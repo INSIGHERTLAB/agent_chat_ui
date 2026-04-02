@@ -11,7 +11,9 @@ Keyboard-centric internal Textual app for testing interview/research agent flow.
   - `F5` send as first ping
   - `F6` send as reply
 - Quick controls for message types:
-  - `Send first ping` (forces `first_message`)
+  - `Send first` (forces `first_message`)
+  - `Send ping` (forces `ping_message`)
+  - `Send recall` (forces `recall_message`)
   - `Send reply` (forces `user_reply`)
 - Save / load research via Prompt Service contract:
   - `PUT /researches/{research_id}/prompt`

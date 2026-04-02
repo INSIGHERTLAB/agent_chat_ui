@@ -8,6 +8,13 @@ from urllib import request, error
 
 from elia_chat.research_models import ChatContext, ResearchInfo, ThreadMessage
 
+SUPPORTED_MESSAGE_TYPES = {
+    "first_message",
+    "user_reply",
+    "ping_message",
+    "recall_message",
+}
+
 
 class PromptServiceClient:
     def __init__(self) -> None:
@@ -72,12 +79,14 @@ class AgentClient:
         message_text: str,
         research_id: str,
         context: ChatContext,
-        is_first_message: bool,
+        message_type: str,
     ) -> dict:
+        if message_type not in SUPPORTED_MESSAGE_TYPES:
+            raise ValueError(f"Unsupported message_type: {message_type}")
         payload = self.build_payload(
             research_id=research_id,
             context=context,
-            is_first_message=is_first_message,
+            message_type=message_type,
             content=[{"type": "text", "text": message_text, "urls": None}],
         )
         return await _json_request("POST", self.url, payload)
@@ -86,12 +95,12 @@ class AgentClient:
         self,
         research_id: str,
         context: ChatContext,
-        is_first_message: bool,
+        message_type: str,
         content: list[dict],
     ) -> dict:
         return {
             "income": {
-                "message_type": "first_message" if is_first_message else "user_reply",
+                "message_type": message_type,
                 "research_id": research_id,
                 "message": {
                     "context": {
