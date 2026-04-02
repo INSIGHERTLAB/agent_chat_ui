@@ -19,6 +19,7 @@ from elia_chat.research_models import (
     ThreadState,
     now_iso,
 )
+from elia_chat.normalization import normalize_context, normalize_research_for_save
 from elia_chat.services import AgentClient, PromptServiceClient, parse_agent_pipeline
 from elia_chat.state_store import LocalStore
 
@@ -187,6 +188,10 @@ class AgentResearchApp(App[None]):
     #threads { width: 28; border: round $primary; }
     #chat { width: 1fr; border: round $accent; }
     #sidebar { width: 44; border: round $secondary; overflow-y: auto; }
+    #sidebar Input { width: 1fr; margin-bottom: 1; }
+    #sidebar TextArea { width: 1fr; margin-bottom: 1; }
+    #sidebar Button { width: 1fr; margin-bottom: 1; }
+    #sidebar Label { margin-left: 1; }
     #ops-log { height: 7; border: round $panel; }
     #messages { height: 1fr; border: round $surface; overflow-y: auto; }
     #composer { height: 7; }
@@ -328,6 +333,17 @@ class AgentResearchApp(App[None]):
     async def save_research(self) -> None:
         self.persist_from_sidebar()
         thread = self.current_thread
+        normalized_research, warnings = normalize_research_for_save(
+            thread.research, thread.thread_id
+        )
+        normalized_context = normalize_context(thread.context)
+        thread.research = normalized_research
+        thread.context = normalized_context
+        self.query_one(ResearchSidebar).fill(thread)
+        for warning in warnings:
+            self.notify(warning, severity="warning", title="Auto-filled")
+            self._log_operation(warning)
+
         self._set_status("Saving research prompt...")
         try:
             response_payload = await self.prompt_client.save_research(thread.research)

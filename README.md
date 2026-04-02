@@ -73,6 +73,7 @@ Then open `http://localhost:8000`.
 - `research_id` must be filled before sending messages.
 - `version` field in sidebar expects an integer (invalid values are ignored with warning).
 - Thread title: `title` -> `research_id` -> `Untitled thread`.
+- On `Save research`, missing/invalid required fields are auto-filled to valid defaults before sending.
 
 ## Smoke check (non-UI)
 
