@@ -83,11 +83,16 @@ class AgentClient:
     ) -> dict:
         if message_type not in SUPPORTED_MESSAGE_TYPES:
             raise ValueError(f"Unsupported message_type: {message_type}")
+        content: list[dict]
+        if message_text.strip():
+            content = [{"type": "text", "text": message_text, "urls": None}]
+        else:
+            content = []
         payload = self.build_payload(
             research_id=research_id,
             context=context,
             message_type=message_type,
-            content=[{"type": "text", "text": message_text, "urls": None}],
+            content=content,
         )
         return await _json_request("POST", self.url, payload)
 

@@ -15,6 +15,7 @@ Keyboard-centric internal Textual app for testing interview/research agent flow.
   - `Send ping` (forces `ping_message`)
   - `Send recall` (forces `recall_message`)
   - `Send reply` (forces `user_reply`)
+  - `Send first/ping/recall` can be clicked with empty composer (trigger-only mode).
 - Save / load research via Prompt Service contract:
   - `PUT /researches/{research_id}/prompt`
   - `GET /researches/{research_id}/prompt`

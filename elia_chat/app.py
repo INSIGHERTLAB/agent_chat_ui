@@ -486,18 +486,6 @@ class AgentResearchApp(App[None]):
             thread = self.current_thread
             composer = self.query_one("#composer", TextArea)
             text = composer.text.strip()
-            if not text:
-                self.notify("Message is empty", severity="warning")
-                self._set_status("Send skipped: empty message")
-                return
-            if not thread.research.research_id:
-                self.notify("research_id is required", severity="warning")
-                self._set_status("Send skipped: research_id is required")
-                return
-
-            composer.clear()
-            thread.messages.append(ThreadMessage(role="user", text=text))
-            self.render_messages(thread.messages)
 
             if mode == "first":
                 message_type = "first_message"
@@ -513,6 +501,23 @@ class AgentResearchApp(App[None]):
                     if (not thread.started or thread.started_research_id != thread.research.research_id)
                     else "user_reply"
                 )
+            requires_user_text = message_type == "user_reply"
+            if requires_user_text and not text:
+                self.notify("Message is empty", severity="warning")
+                self._set_status("Send skipped: empty message")
+                return
+            if not thread.research.research_id:
+                self.notify("research_id is required", severity="warning")
+                self._set_status("Send skipped: research_id is required")
+                return
+
+            if text:
+                composer.clear()
+                thread.messages.append(ThreadMessage(role="user", text=text))
+                self.render_messages(thread.messages)
+            else:
+                self._log_operation("Outgoing content is empty (generator trigger mode)")
+
             self._log_operation(f"Outgoing message_type={message_type}")
 
             try:

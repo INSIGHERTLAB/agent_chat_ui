@@ -82,6 +82,22 @@ class PromptServiceClientTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(kwargs, {})
 
 
+class AgentClientAsyncTests(unittest.IsolatedAsyncioTestCase):
+    async def test_send_text_uses_empty_content_for_generator_modes(self) -> None:
+        client = AgentClient()
+        with patch("elia_chat.services._json_request", new=AsyncMock(return_value={"ok": True})) as mocked:
+            await client.send_text(
+                message_text="",
+                research_id="r1",
+                context=ChatContext(source="telegram", phone="", peer="", chat_id=None),
+                message_type="ping_message",
+            )
+            args, _kwargs = mocked.await_args
+            payload = args[2]
+            self.assertEqual(payload["income"]["message_type"], "ping_message")
+            self.assertEqual(payload["income"]["message"]["content"], [])
+
+
 class PipelineParserTests(unittest.TestCase):
     def test_ignores_trigger_and_parses_batch(self) -> None:
         payload = {
