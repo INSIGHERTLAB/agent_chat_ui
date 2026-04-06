@@ -39,5 +39,4 @@ htmlcov/
 *.local
 
 # Documentation
-README.md
 docs/
