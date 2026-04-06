@@ -1,6 +1,7 @@
 version: "3.9"
 services:
   elia:
+    image: tuiapp
     build: .
     env_file:
       - .env
@@ -8,3 +9,4 @@ services:
       - "8000:8000"
     volumes:
       - ./data:/app/data
+      - ./elia_chat:/app/elia_chat

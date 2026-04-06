@@ -26,12 +26,10 @@ def run_app() -> None:
 @click.option("--port", default=8000, type=int)
 def run_web(host: str, port: int) -> None:
     """Run via Textual web server mode."""
-    app = AgentResearchApp()
-    try:
-        app.run(web=True, host=host, port=port)
-    except TypeError:
-        # Backward-compatible fallback for older Textual builds.
-        app.run(web=True)
+    from textual_serve.server import Server
+
+    server = Server("python elia_chat/app.py", host=host, port=port)
+    server.serve(True)
 
 
 if __name__ == "__main__":

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from dataclasses import dataclass
 
 from textual import on, work
 from textual import events
@@ -10,7 +9,16 @@ from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.message import Message
 from textual.timer import Timer
-from textual.widgets import Button, Footer, Header, Input, Label, OptionList, RichLog, TextArea
+from textual.widgets import (
+    Button,
+    Footer,
+    Header,
+    Input,
+    Label,
+    OptionList,
+    RichLog,
+    TextArea,
+)
 
 from elia_chat.research_models import (
     AppState,
@@ -131,11 +139,15 @@ class ResearchSidebar(Vertical):
         question_lines = []
         for idx, q in enumerate(sorted(r.questions, key=lambda x: x.position), start=1):
             question_lines.append(f"{idx}. {q.text} || {q.goal}")
-        self.query_one("#field-questions", TextArea).text = "\n".join(question_lines) if question_lines else "1. "
+        self.query_one("#field-questions", TextArea).text = (
+            "\n".join(question_lines) if question_lines else "1. "
+        )
         self._update_metadata(thread)
 
     def to_models(self) -> tuple[ResearchInfo, ChatContext]:
-        data = {f: self.query_one(f"#field-{f}", Input).value.strip() for f in self.FIELDS}
+        data = {
+            f: self.query_one(f"#field-{f}", Input).value.strip() for f in self.FIELDS
+        }
         version_raw = data["version"]
         version: int | None = None
         if version_raw:
@@ -149,9 +161,17 @@ class ResearchSidebar(Vertical):
                 )
                 version = None
 
-        fit_criteria = [line.strip() for line in self.query_one("#field-fit_criteria", TextArea).text.splitlines() if line.strip()]
+        fit_criteria = [
+            line.strip()
+            for line in self.query_one(
+                "#field-fit_criteria", TextArea
+            ).text.splitlines()
+            if line.strip()
+        ]
         questions: list[ResearchQuestionDTO] = []
-        for idx, line in enumerate(self.query_one("#field-questions", TextArea).text.splitlines(), start=1):
+        for idx, line in enumerate(
+            self.query_one("#field-questions", TextArea).text.splitlines(), start=1
+        ):
             if not line.strip():
                 continue
             raw_line = line.strip()
@@ -262,7 +282,9 @@ class AgentResearchApp(App[None]):
                 ops_log = RichLog(id="ops-log", wrap=True, auto_scroll=True)
                 ops_log.border_title = "Operations"
                 yield ops_log
-                messages_log = RichLog(id="messages", markup=True, wrap=True, auto_scroll=True)
+                messages_log = RichLog(
+                    id="messages", markup=True, wrap=True, auto_scroll=True
+                )
                 messages_log.border_title = "Chat"
                 yield messages_log
                 composer = TextArea(id="composer")
@@ -403,7 +425,10 @@ class AgentResearchApp(App[None]):
         self._set_status(f"Loading research {research_id}...")
         try:
             exists_payload = await self.prompt_client.prompt_exists(research_id)
-            if isinstance(exists_payload, dict) and exists_payload.get("exists") is False:
+            if (
+                isinstance(exists_payload, dict)
+                and exists_payload.get("exists") is False
+            ):
                 self.notify(f"Research {research_id!r} not found", severity="warning")
                 self._set_status(f"Research {research_id!r} not found")
                 self._log_operation(f"Research {research_id!r} not found")
@@ -483,7 +508,10 @@ class AgentResearchApp(App[None]):
                 else:
                     message_type = (
                         "first_message"
-                        if (not thread.started or thread.started_research_id != thread.research.research_id)
+                        if (
+                            not thread.started
+                            or thread.started_research_id != thread.research.research_id
+                        )
                         else "user_reply"
                     )
             requires_user_text = message_type == "user_reply"
@@ -496,7 +524,9 @@ class AgentResearchApp(App[None]):
                 self._set_status("Send skipped: research_id is required")
                 return
             if not thread.research_saved:
-                self._log_operation("Research wasn't saved yet; auto-saving before send")
+                self._log_operation(
+                    "Research wasn't saved yet; auto-saving before send"
+                )
                 saved_ok = await self._save_research_to_service(auto=True)
                 if not saved_ok:
                     self._set_status("Send skipped: auto-save failed")
@@ -508,7 +538,9 @@ class AgentResearchApp(App[None]):
                 thread.messages.append(ThreadMessage(role="user", text=text))
                 self.render_messages(thread.messages)
             else:
-                self._log_operation("Outgoing content is empty (generator trigger mode)")
+                self._log_operation(
+                    "Outgoing content is empty (generator trigger mode)"
+                )
 
             self._log_operation(f"Outgoing message_type={message_type}")
             self._start_typing_indicator(thread)
@@ -571,7 +603,11 @@ class AgentResearchApp(App[None]):
             self._set_status(f"{title}: {exc}")
             return False
         if isinstance(response_payload, dict):
-            source = response_payload.get("prompt") if isinstance(response_payload.get("prompt"), dict) else response_payload
+            source = (
+                response_payload.get("prompt")
+                if isinstance(response_payload.get("prompt"), dict)
+                else response_payload
+            )
             thread.research.version = source.get("version", thread.research.version)
             thread.research.profile_version_id = source.get(
                 "profile_version_id", thread.research.profile_version_id
@@ -601,14 +637,18 @@ class AgentResearchApp(App[None]):
         )
         self.typing_indicator_step = 0
         self.render_messages(thread.messages)
-        self.typing_indicator_timer = self.set_interval(0.35, self._tick_typing_indicator)
+        self.typing_indicator_timer = self.set_interval(
+            0.35, self._tick_typing_indicator
+        )
 
     def _stop_typing_indicator(self, thread: ThreadState) -> None:
         if self.typing_indicator_timer is not None:
             self.typing_indicator_timer.stop()
             self.typing_indicator_timer = None
         thread.messages = [
-            message for message in thread.messages if not message.meta.get("typing_indicator")
+            message
+            for message in thread.messages
+            if not message.meta.get("typing_indicator")
         ]
         self.render_messages(thread.messages)
 
