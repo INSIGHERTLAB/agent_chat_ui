@@ -17,4 +17,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=3s --retries=3 --start-period=10s \
     CMD python -c "import httpx; httpx.get('http://localhost:8000')"
 
-CMD ["textual", "serve", "elia_chat/__main__.py", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "exec textual serve elia_chat/__main__.py --host 0.0.0.0 --port 8000 --url $CHAT_DOMEN"]
