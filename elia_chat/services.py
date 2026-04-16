@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import asyncio
-import json
 import os
 from datetime import datetime, timezone
-from urllib import request, error
+
+import httpx
 
 from elia_chat.research_models import ChatContext, ResearchInfo, ThreadMessage
 
@@ -15,10 +14,37 @@ SUPPORTED_MESSAGE_TYPES = {
     "recall_message",
 }
 
+REQUEST_TIMEOUT_SECONDS = 120.0
 
-class PromptServiceClient:
+
+class _HTTPJSONClient:
+    async def _request_json(
+        self, method: str, url: str, body: dict | None = None
+    ) -> dict:
+        try:
+            async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS) as client:
+                response = await client.request(
+                    method=method.upper(), url=url, json=body
+                )
+                response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            detail = exc.response.text
+            raise RuntimeError(
+                f"{method} {url} failed: {exc.response.status_code} {detail}"
+            ) from exc
+        except httpx.RequestError as exc:
+            raise RuntimeError(f"{method} {url} failed: {exc}") from exc
+
+        if not response.content:
+            return {}
+        return response.json()
+
+
+class PromptServiceClient(_HTTPJSONClient):
     def __init__(self) -> None:
-        self.base_url = os.getenv("PROMPT_SERVICE_URL", "http://localhost:8000/v1").rstrip("/")
+        self.base_url = os.getenv(
+            "PROMPT_SERVICE_URL", "http://localhost:8000/v1"
+        ).rstrip("/")
 
     async def save_research(self, research: ResearchInfo) -> dict:
         if not research.research_id:
@@ -28,37 +54,39 @@ class PromptServiceClient:
         if body.get("research_id") != path_id:
             raise ValueError("research_id in path and body must match")
         url = f"{self.base_url}/researches/{path_id}/prompt"
-        return await _json_request("PUT", url, body)
+        return await self._request_json("PUT", url, body)
 
     async def load_research(self, research_id: str) -> dict:
         if not research_id:
             raise ValueError("research_id is required")
         url = f"{self.base_url}/researches/{research_id}/prompt"
-        return await _json_request("GET", url)
+        return await self._request_json("GET", url)
 
     async def prompt_exists(self, research_id: str) -> dict:
         url = f"{self.base_url}/researches/{research_id}/prompt/exists"
-        return await _json_request("GET", url)
+        return await self._request_json("GET", url)
 
     async def latest_version(self, research_id: str) -> dict:
         url = f"{self.base_url}/researches/{research_id}/prompt/latest-version"
-        return await _json_request("GET", url)
+        return await self._request_json("GET", url)
 
     async def versions(self, research_id: str) -> dict:
         url = f"{self.base_url}/researches/{research_id}/prompt/versions"
-        return await _json_request("GET", url)
+        return await self._request_json("GET", url)
 
     async def version_by_number(self, research_id: str, version: int) -> dict:
         url = f"{self.base_url}/researches/{research_id}/prompt/versions/{version}"
-        return await _json_request("GET", url)
+        return await self._request_json("GET", url)
 
 
-class AgentClient:
+class AgentClient(_HTTPJSONClient):
     def __init__(self) -> None:
         interview_url = os.getenv("AGENTS__INTERVIEW__URL")
         fallback_url = os.getenv("AGENT_URL")
         self.has_base_url_conflict = bool(
-            interview_url and fallback_url and interview_url.rstrip("/") != fallback_url.rstrip("/")
+            interview_url
+            and fallback_url
+            and interview_url.rstrip("/") != fallback_url.rstrip("/")
         )
         if interview_url:
             base = interview_url
@@ -94,7 +122,7 @@ class AgentClient:
             message_type=message_type,
             content=content,
         )
-        return await _json_request("POST", self.url, payload)
+        return await self._request_json("POST", self.url, payload)
 
     def build_payload(
         self,
@@ -182,25 +210,3 @@ def _research_to_payload(research: ResearchInfo) -> dict:
             for q in research.questions
         ],
     }
-
-
-async def _json_request(method: str, url: str, body: dict | None = None) -> dict:
-    return await asyncio.to_thread(_json_request_sync, method, url, body)
-
-
-def _json_request_sync(method: str, url: str, body: dict | None = None) -> dict:
-    payload = None
-    headers = {"Content-Type": "application/json"}
-    if body is not None:
-        payload = json.dumps(body).encode("utf-8")
-
-    req = request.Request(url=url, method=method.upper(), data=payload, headers=headers)
-    try:
-        with request.urlopen(req, timeout=20) as resp:
-            raw = resp.read().decode("utf-8")
-            return json.loads(raw) if raw else {}
-    except error.HTTPError as exc:
-        detail = exc.read().decode("utf-8")
-        raise RuntimeError(f"{method} {url} failed: {exc.code} {detail}") from exc
-    except error.URLError as exc:
-        raise RuntimeError(f"{method} {url} failed: {exc.reason}") from exc

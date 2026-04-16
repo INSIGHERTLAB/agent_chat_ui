@@ -66,14 +66,14 @@ class PromptServiceClientTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_exists_endpoint(self) -> None:
         client = PromptServiceClient()
-        with patch("elia_chat.services._json_request", new=AsyncMock(return_value={"exists": True})) as mocked:
+        with patch.object(client, "_request_json", new=AsyncMock(return_value={"exists": True})) as mocked:
             result = await client.prompt_exists("r1")
             self.assertEqual(result["exists"], True)
             mocked.assert_awaited_once()
 
     async def test_versions_endpoint(self) -> None:
         client = PromptServiceClient()
-        with patch("elia_chat.services._json_request", new=AsyncMock(return_value={"versions": [1, 2]})) as mocked:
+        with patch.object(client, "_request_json", new=AsyncMock(return_value={"versions": [1, 2]})) as mocked:
             result = await client.versions("r1")
             self.assertEqual(result["versions"], [1, 2])
             args, kwargs = mocked.await_args
@@ -85,7 +85,7 @@ class PromptServiceClientTests(unittest.IsolatedAsyncioTestCase):
 class AgentClientAsyncTests(unittest.IsolatedAsyncioTestCase):
     async def test_send_text_uses_empty_content_for_generator_modes(self) -> None:
         client = AgentClient()
-        with patch("elia_chat.services._json_request", new=AsyncMock(return_value={"ok": True})) as mocked:
+        with patch.object(client, "_request_json", new=AsyncMock(return_value={"ok": True})) as mocked:
             await client.send_text(
                 message_text="",
                 research_id="r1",
